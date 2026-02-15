@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, UserCheck, AlertTriangle } from 'lucide-react'
+import { Users, UserCheck } from 'lucide-react'
 
 export default function AdminDashboard() {
     return (

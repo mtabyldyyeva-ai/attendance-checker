@@ -38,7 +38,7 @@ export default function SchedulePage() {
     const [groups, setGroups] = useState<Item[]>([])
     const [subjects, setSubjects] = useState<Item[]>([])
     const [teachers, setTeachers] = useState<Item[]>([])
-    const [loading, setLoading] = useState(true)
+    // const [loading, setLoading] = useState(true) // Unused
     const [isDialogOpen, setIsDialogOpen] = useState(false)
 
     // Form State
@@ -53,10 +53,11 @@ export default function SchedulePage() {
 
     useEffect(() => {
         fetchData()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const fetchData = async () => {
-        setLoading(true)
+        // setLoading(true)
 
         // Fetch Schedule
         const { data: scheduleData } = await supabase
@@ -71,7 +72,7 @@ export default function SchedulePage() {
             .order('start_time')
 
         if (scheduleData) {
-            // @ts-ignore
+            // @ts-expect-error Supabase join types are not fully inferred
             setSchedule(scheduleData)
         }
 
@@ -84,7 +85,7 @@ export default function SchedulePage() {
         if (subjectsData) setSubjects(subjectsData)
         if (teachersData) setTeachers(teachersData)
 
-        setLoading(false)
+        // setLoading(false)
     }
 
     const handleCreateSchedule = async () => {

@@ -8,18 +8,18 @@ import { useRouter } from 'next/navigation'
 
 export default function TeacherDashboard() {
     const [schedule, setSchedule] = useState<ScheduleItem[]>([])
-    const [loading, setLoading] = useState(true)
+    // const [loading, setLoading] = useState(true) // Unused
     const supabase = createClient()
     const router = useRouter()
 
     useEffect(() => {
         const fetchSchedule = async () => {
-            setLoading(true)
+            // setLoading(true)
 
             const { data: { user } } = await supabase.auth.getUser()
 
             if (!user) {
-                setLoading(false)
+                // setLoading(false)
                 return
             }
 
@@ -36,15 +36,17 @@ export default function TeacherDashboard() {
                 .order('start_time')
 
             if (data) {
-                // @ts-ignore
+                // @ts-expect-error Supabase join types are not fully inferred
                 setSchedule(data)
             }
-            setLoading(false)
+            // setLoading(false)
         }
 
         fetchSchedule()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const handleEventClick = (item: ScheduleItem) => {
         // Navigate to start session for this class?
         // For now, maybe just log or alert, or navigate to a specific session page if exists

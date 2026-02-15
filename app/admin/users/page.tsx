@@ -13,7 +13,7 @@ import Link from 'next/link'
 
 export default async function UsersPage() {
     const supabase = createClient()
-    const { data: users, error } = await (await supabase)
+    const { data: users } = await (await supabase)
         .from('users')
         .select('*')
         .order('created_at', { ascending: false })

@@ -27,7 +27,7 @@ export function AttendanceSession() {
     const [error, setError] = useState<string | null>(null)
     const [students, setStudents] = useState<Student[]>([])
     const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([])
-    const [modelsLoaded, setModelsLoaded] = useState(false)
+    // const [modelsLoaded, setModelsLoaded] = useState(false) // Unused
 
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -48,7 +48,7 @@ export function AttendanceSession() {
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
                 ])
 
-                setModelsLoaded(true)
+                // setModelsLoaded(true)
 
                 // Fetch students and descriptors
                 // For MVP, fetching ALL students. In production, filter by group.
@@ -96,9 +96,10 @@ export function AttendanceSession() {
                 setInitializing(false)
                 setLoading(false)
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error(err)
-                setError('Failed to initialize session: ' + (err.message || err))
+                const errorMessage = err instanceof Error ? err.message : String(err)
+                setError('Failed to initialize session: ' + errorMessage)
                 setInitializing(false)
                 setLoading(false)
             }
@@ -109,7 +110,7 @@ export function AttendanceSession() {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current)
         }
-    }, [])
+    }, [supabase])
 
     const [isStreamActive, setIsStreamActive] = useState(false)
 
@@ -191,7 +192,7 @@ export function AttendanceSession() {
                         drawBox.draw(canvas)
                     }
                 })
-            } catch (e) {
+            } catch (e: unknown) {
                 console.error("Detection error:", e)
             }
 
@@ -249,9 +250,10 @@ export function AttendanceSession() {
             // Stop camera
             stopVideo()
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err)
-            alert("Failed to save attendance: " + err.message)
+            const errorMessage = err instanceof Error ? err.message : String(err)
+            alert("Failed to save attendance: " + errorMessage)
         } finally {
             setLoading(false)
             if (intervalRef.current) clearInterval(intervalRef.current)

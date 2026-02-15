@@ -31,6 +31,7 @@ export default function GroupsPage() {
 
     useEffect(() => {
         fetchGroups()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const fetchGroups = async () => {

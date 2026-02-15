@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/client'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileDown, Calendar } from "lucide-react"
+import { FileDown } from "lucide-react"
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 
@@ -38,11 +38,11 @@ export default function ReportsPage() {
 
             for (const row of data) {
                 const values = [
-                    // @ts-ignore
+                    // @ts-expect-error Supabase join types are not fully inferred
                     row.users?.full_name || 'Unknown',
-                    // @ts-ignore
+                    // @ts-expect-error Supabase join types are not fully inferred
                     row.users?.email || 'Unknown',
-                    // @ts-ignore
+                    // @ts-expect-error Supabase join types are not fully inferred
                     new Date(row.lessons?.date).toLocaleDateString(),
                     new Date(row.timestamp).toLocaleTimeString(),
                     row.status
@@ -63,9 +63,10 @@ export default function ReportsPage() {
             a.click()
             document.body.removeChild(a)
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err)
-            alert("Failed to generate report: " + err.message)
+            const errorMessage = err instanceof Error ? err.message : String(err)
+            alert("Failed to generate report: " + errorMessage)
         } finally {
             setLoading(false)
         }

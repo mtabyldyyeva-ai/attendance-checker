@@ -17,7 +17,7 @@ export function FaceUpload({ userId, onComplete }: FaceUploadProps) {
     const [loading, setLoading] = useState(true)
     const [processing, setProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [modelsLoaded, setModelsLoaded] = useState(false)
+    // const [modelsLoaded, setModelsLoaded] = useState(false) // Unused
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const supabase = createClient()
@@ -31,7 +31,7 @@ export function FaceUpload({ userId, onComplete }: FaceUploadProps) {
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                     faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
                 ])
-                setModelsLoaded(true)
+                // setModelsLoaded(true)
             } catch (err) {
                 console.error('Failed to load face-api models', err)
                 setError('Failed to load face recognition models. Ensure /public/models exists.')
@@ -83,9 +83,10 @@ export function FaceUpload({ userId, onComplete }: FaceUploadProps) {
             if (onComplete) onComplete()
             setImagePreview(null)
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err)
-            setError(err.message || 'Error processing image')
+            const errorMessage = err instanceof Error ? err.message : String(err)
+            setError(errorMessage || 'Error processing image')
         } finally {
             setProcessing(false)
         }
@@ -108,6 +109,7 @@ export function FaceUpload({ userId, onComplete }: FaceUploadProps) {
                 <div className="flex flex-col items-center gap-4">
                     {imagePreview ? (
                         <div className="relative w-64 h-64 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={imagePreview} alt="Preview" className="object-cover w-full h-full" />
                         </div>
                     ) : (

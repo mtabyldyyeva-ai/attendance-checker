@@ -8,17 +8,17 @@ import { CheckCircle, XCircle, Clock } from 'lucide-react'
 
 export default function StudentDashboard() {
     const [schedule, setSchedule] = useState<ScheduleItem[]>([])
-    const [loading, setLoading] = useState(true)
+    // const [loading, setLoading] = useState(true) // Unused
     const supabase = createClient()
 
     useEffect(() => {
         const fetchSchedule = async () => {
-            setLoading(true)
+            // setLoading(true)
 
             const { data: { user } } = await supabase.auth.getUser()
 
             if (!user) {
-                setLoading(false)
+                // setLoading(false)
                 return
             }
 
@@ -43,14 +43,15 @@ export default function StudentDashboard() {
                     .order('start_time')
 
                 if (data) {
-                    // @ts-ignore
+                    // @ts-expect-error Supabase join types are not fully inferred
                     setSchedule(data)
                 }
             }
-            setLoading(false)
+            // setLoading(false)
         }
 
         fetchSchedule()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     return (

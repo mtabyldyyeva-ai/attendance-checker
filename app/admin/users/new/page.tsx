@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { useRouter } from 'next/navigation'
+// import { useRouter } from 'next/navigation' // Unused
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,7 +24,7 @@ export default function AddUserPage() {
     const [groups, setGroups] = useState<Group[]>([])
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState('')
-    const router = useRouter()
+    // const router = useRouter() // Unused
     const supabase = createClient()
 
     useEffect(() => {
@@ -33,6 +33,7 @@ export default function AddUserPage() {
             if (data) setGroups(data)
         }
         fetchGroups()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const handleCreateUser = async (e: React.FormEvent) => {
@@ -65,9 +66,10 @@ export default function AddUserPage() {
                 setPassword('')
                 setFullName('')
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err)
-            setMessage('Error: ' + err.message)
+            const errorMessage = err instanceof Error ? err.message : String(err)
+            setMessage('Error: ' + errorMessage)
         } finally {
             setLoading(false)
         }
