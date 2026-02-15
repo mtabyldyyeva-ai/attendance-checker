@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { FaceUpload } from '@/components/admin/FaceUpload'
 import { notFound } from 'next/navigation'
 
-export default async function UserDetailsPage({ params }: { params: { id: string } }) {
+export default async function UserDetailsPage(props: { params: Promise<{ id: string }> }) {
     // Await params before using its properties
-    const { id } = await params;
+    const params = await props.params;
+    const { id } = params;
 
     const supabase = createClient()
     const { data: user, error } = await (await supabase)
