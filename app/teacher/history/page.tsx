@@ -1,6 +1,9 @@
 import { createClient } from '@/utils/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import Link from 'next/link'
+import { Eye } from 'lucide-react'
 
 export default async function TeacherHistoryPage() {
     const supabase = createClient()
@@ -36,6 +39,7 @@ export default async function TeacherHistoryPage() {
                                 <TableHead>Date</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Attendance Count</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -45,11 +49,19 @@ export default async function TeacherHistoryPage() {
                                         <TableCell>{new Date(lesson.date).toLocaleDateString()} {new Date(lesson.date).toLocaleTimeString()}</TableCell>
                                         <TableCell className="capitalize">{lesson.status}</TableCell>
                                         <TableCell>{lesson.attendance?.[0]?.count || 0}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Link href={`/teacher/history/${lesson.id}`}>
+                                                <Button variant="outline" size="sm">
+                                                    <Eye className="w-4 h-4 mr-2" />
+                                                    View Details
+                                                </Button>
+                                            </Link>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={3} className="text-center text-gray-500">
+                                    <TableCell colSpan={4} className="text-center text-gray-500">
                                         No classes recorded yet.
                                     </TableCell>
                                 </TableRow>

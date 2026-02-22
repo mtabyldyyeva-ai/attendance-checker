@@ -216,13 +216,18 @@ export function AttendanceSession() {
         setLoading(true)
 
         try {
+            // Get current user (teacher)
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) throw new Error("Not authenticated as teacher")
+
             // 1. Create a Lesson Record (Mocking subject/group for now)
             // In production, these IDs would come from the selected schedule/class
             const { data: lesson, error: lessonError } = await supabase
                 .from('lessons')
                 .insert({
-                    date: new Date().toISOString(),
-                    status: 'completed'
+                    date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+                    status: 'completed',
+                    teacher_id: user.id
                     // group_id, subject_id would go here
                 })
                 .select()
@@ -231,20 +236,22 @@ export function AttendanceSession() {
             if (lessonError) throw lessonError
 
             // 2. Create Attendance Records
-            const records = attendanceList.map(record => ({
-                lesson_id: lesson.id,
-                student_id: record.studentId,
-                status: 'present',
-                timestamp: record.timestamp.toISOString()
-            }))
+            if (attendanceList.length > 0) {
+                const records = attendanceList.map(record => ({
+                    lesson_id: lesson.id,
+                    student_id: record.studentId,
+                    status: 'present',
+                    timestamp: record.timestamp.toISOString()
+                }))
 
-            const { error: attError } = await supabase
-                .from('attendance')
-                .insert(records)
+                const { error: attError } = await supabase
+                    .from('attendance')
+                    .insert(records)
 
-            if (attError) throw attError
+                if (attError) throw attError
+            }
 
-            alert(`Class finished successfully! Saved ${records.length} records.`)
+            alert(`Class finished successfully! Saved ${attendanceList.length} records.`)
             setAttendanceList([])
 
             // Stop camera
