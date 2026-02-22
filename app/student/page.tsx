@@ -36,7 +36,7 @@ export default function StudentDashboard() {
                         id, day_of_week, start_time, end_time,
                         groups (name),
                         subjects (name),
-                        users (full_name)
+                        users!schedule_teacher_id_fkey (full_name)
                     `)
                     .eq('group_id', studentData.group_id)
                     .order('day_of_week')

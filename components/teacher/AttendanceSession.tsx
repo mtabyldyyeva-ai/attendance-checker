@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, Suspense } from 'react'
 import * as faceapi from 'face-api.js'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Loader2, Camera, UserCheck, UserX } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useSearchParams } from 'next/navigation'
 
 // Types
 interface Student {
@@ -21,7 +22,16 @@ interface AttendanceRecord {
     timestamp: Date
 }
 
-export function AttendanceSession() {
+interface ScheduleDetails {
+    id: string
+    group_id: string
+    subject_id: string
+}
+
+function AttendanceSessionInner() {
+    const searchParams = useSearchParams()
+    const scheduleId = searchParams.get('schedule_id')
+
     const [loading, setLoading] = useState(true)
     const [initializing, setInitializing] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -32,6 +42,7 @@ export function AttendanceSession() {
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [faceMatcher, setFaceMatcher] = useState<faceapi.FaceMatcher | null>(null)
+    const [scheduleDetails, setScheduleDetails] = useState<ScheduleDetails | null>(null)
     const supabase = createClient()
     const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -50,14 +61,91 @@ export function AttendanceSession() {
 
                 // setModelsLoaded(true)
 
-                // Fetch students and descriptors
-                // For MVP, fetching ALL students. In production, filter by group.
-                const { data: usersData, error: usersError } = await supabase
-                    .from('users')
-                    .select('id, full_name, role')
-                    .eq('role', 'student')
+                // Fetch Schedule details if provided
+                let groupIdToFetch = null
+                if (scheduleId) {
+                    const { data: scheduleData, error: scheduleError } = await supabase
+                        .from('schedule')
+                        .select('id, group_id, subject_id')
+                        .eq('id', scheduleId)
+                        .single()
 
-                if (usersError) throw usersError
+                    if (scheduleError) throw scheduleError
+
+                    if (scheduleData) {
+                        setScheduleDetails({
+                            id: scheduleData.id,
+                            group_id: scheduleData.group_id,
+                            subject_id: scheduleData.subject_id
+                        })
+                        groupIdToFetch = scheduleData.group_id
+
+                        // Check if a completed lesson already exists for today
+                        const todayDate = new Date().toISOString().split('T')[0]
+                        const { data: existingLesson } = await supabase
+                            .from('lessons')
+                            .select('id')
+                            .eq('schedule_id', scheduleId)
+                            .eq('date', todayDate)
+                            .maybeSingle()
+
+                        if (existingLesson) {
+                            setError('A session has already been recorded for this class today.')
+                            setInitializing(false)
+                            setLoading(false)
+                            return
+                        }
+                    }
+                }
+
+                // Fetch students and descriptors
+                let usersData: { id: string, full_name: string, role: string }[] | null = null;
+
+                if (scheduleId) {
+                    // Fetch specifically assigned students for this schedule
+                    const { data: scheduleStudentsData, error: ssError } = await supabase
+                        .from('schedule_students')
+                        .select('student_id')
+                        .eq('schedule_id', scheduleId)
+
+                    if (ssError) throw ssError
+
+                    if (scheduleStudentsData && scheduleStudentsData.length > 0) {
+                        const studentIds = scheduleStudentsData.map(ss => ss.student_id)
+                        const { data: specificUsersData, error: usersError } = await supabase
+                            .from('users')
+                            .select('id, full_name, role')
+                            .in('id', studentIds)
+
+                        if (usersError) throw usersError
+                        usersData = specificUsersData
+                    } else {
+                        // Fallback: no specific students assigned, maybe just the group from before
+                        if (groupIdToFetch) {
+                            const { data: groupUsersData, error: usersError } = await supabase
+                                .from('users')
+                                .select('id, full_name, role')
+                                .eq('role', 'student')
+                                .eq('group_id', groupIdToFetch)
+
+                            if (usersError) throw usersError
+                            usersData = groupUsersData
+                        } else {
+                            usersData = []
+                        }
+                    }
+                } else {
+                    // Generic new session without a specific schedule
+                    const { data: allUsersData, error: usersError } = await supabase
+                        .from('users')
+                        .select('id, full_name, role')
+                        .eq('role', 'student')
+
+                    if (usersError) throw usersError
+                    usersData = allUsersData
+                }
+
+                if (!usersData) usersData = []
 
                 const { data: descriptorsData, error: descError } = await supabase
                     .from('face_descriptors')
@@ -110,7 +198,7 @@ export function AttendanceSession() {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current)
         }
-    }, [supabase])
+    }, [supabase, scheduleId])
 
     const [isStreamActive, setIsStreamActive] = useState(false)
 
@@ -220,15 +308,16 @@ export function AttendanceSession() {
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) throw new Error("Not authenticated as teacher")
 
-            // 1. Create a Lesson Record (Mocking subject/group for now)
-            // In production, these IDs would come from the selected schedule/class
+            // 1. Create a Lesson Record
             const { data: lesson, error: lessonError } = await supabase
                 .from('lessons')
                 .insert({
                     date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
                     status: 'completed',
-                    teacher_id: user.id
-                    // group_id, subject_id would go here
+                    teacher_id: user.id,
+                    schedule_id: scheduleDetails?.id || null,
+                    group_id: scheduleDetails?.group_id || null,
+                    subject_id: scheduleDetails?.subject_id || null
                 })
                 .select()
                 .single()
@@ -351,5 +440,13 @@ export function AttendanceSession() {
                 </div>
             )}
         </div>
+    )
+}
+
+export function AttendanceSession() {
+    return (
+        <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <AttendanceSessionInner />
+        </Suspense>
     )
 }

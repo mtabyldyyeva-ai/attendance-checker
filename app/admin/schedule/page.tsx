@@ -15,6 +15,8 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { WeeklySchedule, ScheduleItem } from "@/components/WeeklySchedule"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Types
 interface Item {
@@ -38,13 +40,14 @@ export default function SchedulePage() {
     const [groups, setGroups] = useState<Item[]>([])
     const [subjects, setSubjects] = useState<Item[]>([])
     const [teachers, setTeachers] = useState<Item[]>([])
-    // const [loading, setLoading] = useState(true) // Unused
+    const [students, setStudents] = useState<Item[]>([])
     const [isDialogOpen, setIsDialogOpen] = useState(false)
 
     // Form State
     const [selectedGroup, setSelectedGroup] = useState('')
     const [selectedSubject, setSelectedSubject] = useState('')
     const [selectedTeacher, setSelectedTeacher] = useState('')
+    const [selectedStudents, setSelectedStudents] = useState<string[]>([])
     const [selectedDay, setSelectedDay] = useState('')
     const [startTime, setStartTime] = useState('')
     const [endTime, setEndTime] = useState('')
@@ -57,8 +60,6 @@ export default function SchedulePage() {
     }, [])
 
     const fetchData = async () => {
-        // setLoading(true)
-
         // Fetch Schedule
         const { data: scheduleData } = await supabase
             .from('schedule')
@@ -66,7 +67,7 @@ export default function SchedulePage() {
                 id, day_of_week, start_time, end_time,
                 groups (name),
                 subjects (name),
-                users (full_name)
+                users!schedule_teacher_id_fkey (full_name)
             `)
             .order('day_of_week')
             .order('start_time')
@@ -80,12 +81,28 @@ export default function SchedulePage() {
         const { data: groupsData } = await supabase.from('groups').select('id, name')
         const { data: subjectsData } = await supabase.from('subjects').select('id, name')
         const { data: teachersData } = await supabase.from('users').select('id, full_name').eq('role', 'teacher')
+        const { data: studentsData } = await supabase.from('users').select('id, full_name').eq('role', 'student').order('full_name')
 
         if (groupsData) setGroups(groupsData)
         if (subjectsData) setSubjects(subjectsData)
         if (teachersData) setTeachers(teachersData)
+        if (studentsData) setStudents(studentsData)
+    }
 
-        // setLoading(false)
+    const toggleStudent = (studentId: string) => {
+        setSelectedStudents(prev =>
+            prev.includes(studentId)
+                ? prev.filter(id => id !== studentId)
+                : [...prev, studentId]
+        )
+    }
+
+    const selectStudentsByGroup = async (groupId: string) => {
+        if (!groupId) return
+        const { data } = await supabase.from('users').select('id').eq('role', 'student').eq('group_id', groupId)
+        if (data) {
+            setSelectedStudents(data.map(u => u.id))
+        }
     }
 
     const handleCreateSchedule = async () => {
@@ -94,7 +111,12 @@ export default function SchedulePage() {
             return
         }
 
-        const { error } = await supabase
+        if (selectedStudents.length === 0) {
+            if (!confirm("You haven't selected any specific students for this class. Proceed anyway?")) return
+        }
+
+        // 1. Insert schedule
+        const { data: newSchedule, error } = await supabase
             .from('schedule')
             .insert({
                 group_id: selectedGroup,
@@ -104,16 +126,37 @@ export default function SchedulePage() {
                 start_time: startTime,
                 end_time: endTime
             })
+            .select()
+            .single()
 
-        if (error) {
-            alert('Failed to create schedule: ' + error.message)
-        } else {
-            setIsDialogOpen(false)
-            fetchData()
-            // Reset form
-            setStartTime('')
-            setEndTime('')
+        if (error || !newSchedule) {
+            alert('Failed to create schedule: ' + (error?.message || 'Unknown error'))
+            return
         }
+
+        // 2. Insert schedule_students relationships
+        if (selectedStudents.length > 0) {
+            const studentRelations = selectedStudents.map(studentId => ({
+                schedule_id: newSchedule.id,
+                student_id: studentId
+            }))
+
+            const { error: relationError } = await supabase
+                .from('schedule_students')
+                .insert(studentRelations)
+
+            if (relationError) {
+                console.error("Failed to attach students to schedule:", relationError)
+                alert('Schedule created, but failed to attach students.')
+            }
+        }
+
+        setIsDialogOpen(false)
+        fetchData()
+        // Reset form
+        setStartTime('')
+        setEndTime('')
+        setSelectedStudents([])
     }
 
     const handleDelete = async (id: string) => {
@@ -139,8 +182,11 @@ export default function SchedulePage() {
                         <div className="space-y-4 py-4">
 
                             <div className="space-y-2">
-                                <Label>Select Group</Label>
-                                <Select onValueChange={setSelectedGroup}>
+                                <Label>Group (Helps filter students and label schedule block)</Label>
+                                <Select onValueChange={(val) => {
+                                    setSelectedGroup(val)
+                                    selectStudentsByGroup(val)
+                                }}>
                                     <SelectTrigger><SelectValue placeholder="Select Group" /></SelectTrigger>
                                     <SelectContent>
                                         {groups.map(g => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
@@ -166,6 +212,34 @@ export default function SchedulePage() {
                                         {teachers.map(t => <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Select Specific Students</Label>
+                                <div className="text-xs text-muted-foreground mb-2">
+                                    Selecting a group above automatically selects its students here. You can modify the list manually.
+                                </div>
+                                <div className="border rounded-md p-2">
+                                    <ScrollArea className="h-[150px] w-full pr-4">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {students.map(student => (
+                                                <div key={student.id} className="flex flex-row items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`student-${student.id}`}
+                                                        checked={selectedStudents.includes(student.id)}
+                                                        onCheckedChange={() => toggleStudent(student.id)}
+                                                    />
+                                                    <Label
+                                                        htmlFor={`student-${student.id}`}
+                                                        className="text-sm cursor-pointer whitespace-nowrap overflow-hidden text-ellipsis"
+                                                    >
+                                                        {student.full_name}
+                                                    </Label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                </div>
                             </div>
 
                             <div className="space-y-2">

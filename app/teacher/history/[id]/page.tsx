@@ -30,21 +30,45 @@ export default async function ClassDetailsPage({ params }: { params: Promise<{ i
         return <div>Error loading attendance data.</div>
     }
 
-    // 3. Fetch all students (MVP: We check all students. Later, filter by group)
-    const { data: allStudents, error: studentError } = await supabase
+    // 3. Determine the expected class roster
+    let expectedStudentIds: string[] | null = null
+
+    if (lesson.schedule_id) {
+        // Try getting assigned students specifically for this schedule
+        const { data: scheduleStudents } = await supabase
+            .from('schedule_students')
+            .select('student_id')
+            .eq('schedule_id', lesson.schedule_id)
+
+        if (scheduleStudents && scheduleStudents.length > 0) {
+            expectedStudentIds = scheduleStudents.map(ss => ss.student_id)
+        }
+    }
+
+    // 4. Fetch students based on expected list or generic list
+    let studentsQuery = supabase
         .from('users')
         .select('id, full_name, email')
         .eq('role', 'student')
+
+    if (expectedStudentIds) {
+        studentsQuery = studentsQuery.in('id', expectedStudentIds)
+    } else if (lesson.group_id) {
+        // Fallback to group_id if no specific schedule students found (older records)
+        studentsQuery = studentsQuery.eq('group_id', lesson.group_id)
+    }
+
+    const { data: classStudents, error: studentError } = await studentsQuery
 
     if (studentError) {
         return <div>Error loading student data.</div>
     }
 
-    // 4. Organize data: Present vs Absent
+    // 5. Organize data: Present vs Absent
     const presentStudentIds = new Set(attendanceRecords?.map(record => record.student_id))
 
     // Create an array mapping present students to their records
-    const presentStudents = (allStudents || []).filter(s => presentStudentIds.has(s.id)).map(student => {
+    const presentStudents = (classStudents || []).filter(s => presentStudentIds.has(s.id)).map(student => {
         const record = attendanceRecords.find(r => r.student_id === student.id)
         return {
             ...student,
@@ -52,7 +76,7 @@ export default async function ClassDetailsPage({ params }: { params: Promise<{ i
         }
     })
 
-    const absentStudents = (allStudents || []).filter(s => !presentStudentIds.has(s.id))
+    const absentStudents = (classStudents || []).filter(s => !presentStudentIds.has(s.id))
 
 
     return (

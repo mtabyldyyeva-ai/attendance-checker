@@ -29,7 +29,7 @@ export default function TeacherDashboard() {
                     id, day_of_week, start_time, end_time,
                     groups (name),
                     subjects (name),
-                    users (full_name)
+                    users!schedule_teacher_id_fkey (full_name)
                 `)
                 .eq('teacher_id', user.id)
                 .order('day_of_week')
@@ -46,13 +46,8 @@ export default function TeacherDashboard() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const handleEventClick = (item: ScheduleItem) => {
-        // Navigate to start session for this class?
-        // For now, maybe just log or alert, or navigate to a specific session page if exists
-        // router.push(`/teacher/session/${item.id}`) 
-        // The current "Start Class" page is generic /teacher/session/new
-        router.push('/teacher/session/new')
+        router.push(`/teacher/session/new?schedule_id=${item.id}`)
     }
 
     return (
