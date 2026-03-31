@@ -8,8 +8,8 @@ export default async function UserDetailsPage(props: { params: Promise<{ id: str
     const params = await props.params;
     const { id } = params;
 
-    const supabase = createClient()
-    const { data: user, error } = await (await supabase)
+    const supabase = await createClient()
+    const { data: user, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', id)
@@ -19,7 +19,7 @@ export default async function UserDetailsPage(props: { params: Promise<{ id: str
         notFound()
     }
 
-    const { data: faceData } = await (await supabase)
+    const { data: faceData } = await supabase
         .from('face_descriptors')
         .select('id, created_at')
         .eq('user_id', id)

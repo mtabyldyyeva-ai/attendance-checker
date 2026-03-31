@@ -17,7 +17,6 @@ export function FaceUpload({ userId, onComplete }: FaceUploadProps) {
     const [loading, setLoading] = useState(true)
     const [processing, setProcessing] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    // const [modelsLoaded, setModelsLoaded] = useState(false) // Unused
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const supabase = createClient()

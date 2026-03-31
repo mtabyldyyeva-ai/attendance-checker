@@ -31,21 +31,22 @@ export default function LoginPage() {
             setError(error.message)
             setLoading(false)
         } else {
-            // Check user role and redirect accordingly
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                // We'll fetch the role from the public.users table or metadata
-                // For now, let's assume metadata carries the role or we redirect to a dashboard that routes them
-                // Ideally, we redirect to a specific route based on role.
-                // Let's check metadata first as we set it in the trigger
-                const role = user.user_metadata.role;
+                // Fetch role from the database (source of truth)
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single()
+
+                const role = profile?.role || user.user_metadata?.role
 
                 if (role === 'admin') router.push('/admin')
                 else if (role === 'teacher') router.push('/teacher')
                 else if (role === 'student') router.push('/student')
-                else router.push('/') // Fallback
+                else router.push('/')
             }
-            // router.refresh() // Refresh to update server components
         }
     }
 

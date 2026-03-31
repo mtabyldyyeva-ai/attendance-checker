@@ -1,7 +1,20 @@
+import { createClient } from '@/utils/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, UserCheck } from 'lucide-react'
 
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
+    const supabase = await createClient()
+
+    const [
+        { count: studentCount },
+        { count: teacherCount },
+        { count: groupCount },
+    ] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'teacher'),
+        supabase.from('groups').select('*', { count: 'exact', head: true }),
+    ])
+
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
@@ -13,8 +26,7 @@ export default function AdminDashboard() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
-                        <p className="text-xs text-muted-foreground">+0 from last month</p>
+                        <div className="text-2xl font-bold">{studentCount ?? 0}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -23,7 +35,7 @@ export default function AdminDashboard() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{teacherCount ?? 0}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -32,7 +44,7 @@ export default function AdminDashboard() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{groupCount ?? 0}</div>
                     </CardContent>
                 </Card>
                 <Card>

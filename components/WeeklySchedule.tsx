@@ -1,8 +1,8 @@
 'use client'
 
-// import { Card, CardContent, CardHeader } from "@/components/ui/card" // Unused
 import { cn } from "@/lib/utils"
-import { Trash2, Video } from "lucide-react"
+import { Trash2, Video, ChevronLeft, ChevronRight } from "lucide-react"
+import { useState } from "react"
 
 // Types
 export interface ScheduleItem {
@@ -10,6 +10,8 @@ export interface ScheduleItem {
     day_of_week: number
     start_time: string
     end_time: string
+    start_date?: string | null
+    end_date?: string | null
     groups: { name: string } | null
     subjects: { name: string } | null
     users: { full_name: string } | null // Teacher
@@ -37,7 +39,60 @@ const START_HOUR = 8 // 8 AM
 const END_HOUR = 20  // 8 PM
 const CELL_HEIGHT = 60 // 60px per hour
 
+function getMonday(date: Date): Date {
+    const d = new Date(date)
+    const day = d.getDay()
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+    d.setDate(diff)
+    d.setHours(0, 0, 0, 0)
+    return d
+}
+
+function formatWeekRange(monday: Date): string {
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+
+    const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
+    return `${monday.toLocaleDateString('en-US', opts)} — ${sunday.toLocaleDateString('en-US', opts)}`
+}
+
+function isSameWeek(a: Date, b: Date): boolean {
+    const ma = getMonday(a)
+    const mb = getMonday(b)
+    return ma.getTime() === mb.getTime()
+}
+
 export function WeeklySchedule({ schedule, onDelete, onEventClick, readOnly = false, role = 'student' }: WeeklyScheduleProps) {
+    const today = new Date()
+    const [weekStart, setWeekStart] = useState(() => getMonday(today))
+
+    const isCurrentWeek = isSameWeek(weekStart, today)
+    const todayDow = today.getDay() // 0=Sun, 1=Mon...
+
+    const prevWeek = () => {
+        const d = new Date(weekStart)
+        d.setDate(d.getDate() - 7)
+        setWeekStart(d)
+    }
+
+    const nextWeek = () => {
+        const d = new Date(weekStart)
+        d.setDate(d.getDate() + 7)
+        setWeekStart(d)
+    }
+
+    const goToday = () => {
+        setWeekStart(getMonday(today))
+    }
+
+    // Get date for each day column
+    const getDayDate = (dayValue: number): Date => {
+        const d = new Date(weekStart)
+        // dayValue: 1=Mon, 2=Tue, ..., 6=Sat, 0=Sun
+        const offset = dayValue === 0 ? 6 : dayValue - 1
+        d.setDate(d.getDate() + offset)
+        return d
+    }
 
     // Helper to calculate position
     const getPositionStyle = (start: string, end: string) => {
@@ -55,10 +110,37 @@ export function WeeklySchedule({ schedule, onDelete, onEventClick, readOnly = fa
 
     return (
         <div className="flex-1 border rounded-lg shadow-sm bg-white dark:bg-zinc-950 overflow-hidden flex flex-col h-full bg-background">
+
+            {/* Week Navigation */}
+            <div className="flex items-center justify-between px-4 py-2 border-b bg-background">
+                <button
+                    onClick={prevWeek}
+                    className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium">{formatWeekRange(weekStart)}</span>
+                    {!isCurrentWeek && (
+                        <button
+                            onClick={goToday}
+                            className="text-xs px-2 py-0.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                        >
+                            Today
+                        </button>
+                    )}
+                </div>
+                <button
+                    onClick={nextWeek}
+                    className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                    <ChevronRight className="h-4 w-4" />
+                </button>
+            </div>
+
             <div className="overflow-y-auto flex-1 relative custom-scrollbar">
 
-                {/* 1. Header (Sticky) */}
-                {/* 1. Header (Sticky) */}
+                {/* Header (Sticky) */}
                 <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b flex shadow-sm ring-1 ring-border/5 min-w-[600px]">
                     {/* Top Left Corner */}
                     <div className="absolute top-0 left-0 bottom-0 w-[60px] border-r flex items-center justify-center text-xs font-medium text-muted-foreground bg-background z-10">
@@ -66,15 +148,38 @@ export function WeeklySchedule({ schedule, onDelete, onEventClick, readOnly = fa
                     </div>
                     {/* Days Header */}
                     <div className="flex flex-1 ml-[60px]">
-                        {DAYS.map((day) => (
-                            <div key={day.value} className="flex-1 py-3 text-center text-sm font-semibold text-foreground/80 border-r last:border-r-0">
-                                {day.label}
-                            </div>
-                        ))}
+                        {DAYS.map((day) => {
+                            const dayDate = getDayDate(day.value)
+                            const isToday = isCurrentWeek && todayDow === day.value
+                            return (
+                                <div
+                                    key={day.value}
+                                    className={cn(
+                                        "flex-1 py-2 text-center border-r last:border-r-0 transition-colors",
+                                        isToday && "bg-primary/5"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "text-sm font-semibold",
+                                        isToday ? "text-primary" : "text-foreground/80"
+                                    )}>
+                                        {day.label}
+                                    </div>
+                                    <div className={cn(
+                                        "text-xs mt-0.5",
+                                        isToday
+                                            ? "bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center mx-auto font-bold"
+                                            : "text-muted-foreground"
+                                    )}>
+                                        {dayDate.getDate()}
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
                 </div>
 
-                {/* 2. Scrollable Grid Body */}
+                {/* Scrollable Grid Body */}
                 <div className="relative min-w-[600px]" style={{ height: (END_HOUR - START_HOUR) * CELL_HEIGHT }}>
 
                     {/* Horizontal Grid Lines */}
@@ -96,7 +201,6 @@ export function WeeklySchedule({ schedule, onDelete, onEventClick, readOnly = fa
                                 className="relative w-full border-b border-transparent"
                                 style={{ height: CELL_HEIGHT }}
                             >
-                                {/* Center the time label on the grid line */}
                                 <span
                                     className="absolute -top-2 right-2 text-xs text-muted-foreground text-right w-full pr-1 bg-background"
                                 >
@@ -106,12 +210,48 @@ export function WeeklySchedule({ schedule, onDelete, onEventClick, readOnly = fa
                         ))}
                     </div>
 
+                    {/* Current time indicator */}
+                    {isCurrentWeek && (() => {
+                        const nowMinutes = today.getHours() * 60 + today.getMinutes()
+                        const startMinutes = START_HOUR * 60
+                        const endMinutes = END_HOUR * 60
+                        if (nowMinutes < startMinutes || nowMinutes > endMinutes) return null
+
+                        const top = ((nowMinutes - startMinutes) / 60) * CELL_HEIGHT
+                        const dayIndex = DAYS.findIndex(d => d.value === todayDow)
+                        if (dayIndex === -1) return null
+
+                        return (
+                            <div
+                                className="absolute z-30 pointer-events-none"
+                                style={{ top: `${top}px`, left: '60px', right: 0 }}
+                            >
+                                <div className="relative w-full h-0">
+                                    <div className="absolute left-0 right-0 border-t-2 border-red-500 opacity-60" />
+                                    <div className="absolute left-0 w-2 h-2 -mt-1 rounded-full bg-red-500" />
+                                </div>
+                            </div>
+                        )
+                    })()}
+
                     {/* Events Grid */}
                     <div className="absolute inset-0 flex ml-[60px] z-20">
                         {DAYS.map((day) => {
-                            const dayClasses = schedule.filter(s => s.day_of_week === day.value)
+                            const dayDate = getDayDate(day.value)
+                            const dayDateStr = dayDate.toISOString().split('T')[0]
+                            const dayClasses = schedule.filter(s => {
+                                if (s.day_of_week !== day.value) return false
+                                // Filter by active period if set
+                                if (s.start_date && dayDateStr < s.start_date) return false
+                                if (s.end_date && dayDateStr > s.end_date) return false
+                                return true
+                            })
+                            const isToday = isCurrentWeek && todayDow === day.value
                             return (
-                                <div key={day.value} className="flex-1 relative border-r last:border-r-0 border-transparent">
+                                <div key={day.value} className={cn(
+                                    "flex-1 relative border-r last:border-r-0 border-transparent",
+                                    isToday && "bg-primary/[0.03]"
+                                )}>
                                     {dayClasses.map(item => {
                                         const style = getPositionStyle(item.start_time, item.end_time)
                                         return (
@@ -120,7 +260,6 @@ export function WeeklySchedule({ schedule, onDelete, onEventClick, readOnly = fa
                                                 className={cn(
                                                     "absolute left-0.5 right-0.5 rounded px-2 py-1 border-l-4 transition-all overflow-hidden text-xs shadow-sm z-30 select-none",
                                                     onEventClick ? "cursor-pointer hover:brightness-95 hover:shadow-md" : "",
-                                                    // Role-based styling
                                                     role === 'teacher' ? "bg-purple-50 dark:bg-purple-900/20 border-purple-500" :
                                                         role === 'admin' ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500" :
                                                             "bg-green-50 dark:bg-green-900/20 border-green-500"
@@ -180,4 +319,3 @@ export function WeeklySchedule({ schedule, onDelete, onEventClick, readOnly = fa
         </div>
     )
 }
-

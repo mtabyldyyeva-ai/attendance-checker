@@ -6,11 +6,11 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 export default async function FacesPage() {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Fetch users joined with their face descriptors
     // We use a left join to see who DOESN'T have face data too
-    const { data: users, error } = await (await supabase)
+    const { data: users, error } = await supabase
         .from('users')
         .select(`
         id,

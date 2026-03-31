@@ -4,18 +4,18 @@ import { Badge } from "@/components/ui/badge"
 import { User } from "lucide-react"
 
 export default async function ProfilePage() {
-    const supabase = createClient()
-    const { data: { user } } = await (await supabase).auth.getUser()
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return <div>Please log in</div>
 
-    const { data: profile } = await (await supabase)
+    const { data: profile } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
         .single()
 
-    const { count: faceCount } = await (await supabase)
+    const { count: faceCount } = await supabase
         .from('face_descriptors')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)

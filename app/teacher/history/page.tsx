@@ -6,10 +6,16 @@ import Link from 'next/link'
 import { Eye } from 'lucide-react'
 
 export default async function TeacherHistoryPage() {
-    const supabase = createClient()
+    const supabase = await createClient()
 
-    // Fetch lessons with attendance count
-    const { data: lessons, error } = await (await supabase)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        return <div>Please log in</div>
+    }
+
+    // Fetch lessons with attendance count — filtered by current teacher
+    const { data: lessons, error } = await supabase
         .from('lessons')
         .select(`
         id,
@@ -17,6 +23,7 @@ export default async function TeacherHistoryPage() {
         status,
         attendance (count)
     `)
+        .eq('teacher_id', user.id)
         .order('date', { ascending: false })
 
     if (error) {

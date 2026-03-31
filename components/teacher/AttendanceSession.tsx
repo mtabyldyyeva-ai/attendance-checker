@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Loader2, Camera, UserCheck, UserX } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 // Types
 interface Student {
@@ -30,6 +30,7 @@ interface ScheduleDetails {
 
 function AttendanceSessionInner() {
     const searchParams = useSearchParams()
+    const router = useRouter()
     const scheduleId = searchParams.get('schedule_id')
 
     const [loading, setLoading] = useState(true)
@@ -37,7 +38,6 @@ function AttendanceSessionInner() {
     const [error, setError] = useState<string | null>(null)
     const [students, setStudents] = useState<Student[]>([])
     const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([])
-    // const [modelsLoaded, setModelsLoaded] = useState(false) // Unused
 
     const videoRef = useRef<HTMLVideoElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -324,9 +324,11 @@ function AttendanceSessionInner() {
 
             if (lessonError) throw lessonError
 
-            // 2. Create Attendance Records
+            // 2. Create Attendance Records for present students
+            const presentIds = new Set(attendanceList.map(r => r.studentId))
+
             if (attendanceList.length > 0) {
-                const records = attendanceList.map(record => ({
+                const presentRecords = attendanceList.map(record => ({
                     lesson_id: lesson.id,
                     student_id: record.studentId,
                     status: 'present',
@@ -335,16 +337,34 @@ function AttendanceSessionInner() {
 
                 const { error: attError } = await supabase
                     .from('attendance')
-                    .insert(records)
+                    .insert(presentRecords)
 
                 if (attError) throw attError
             }
 
-            alert(`Class finished successfully! Saved ${attendanceList.length} records.`)
+            // 3. Create Attendance Records for absent students
+            const absentStudents = students.filter(s => !presentIds.has(s.id))
+            if (absentStudents.length > 0) {
+                const absentRecords = absentStudents.map(s => ({
+                    lesson_id: lesson.id,
+                    student_id: s.id,
+                    status: 'absent',
+                    timestamp: new Date().toISOString()
+                }))
+
+                const { error: absentError } = await supabase
+                    .from('attendance')
+                    .insert(absentRecords)
+
+                if (absentError) throw absentError
+            }
+
+            alert(`Class finished! Present: ${attendanceList.length}, Absent: ${absentStudents.length}`)
             setAttendanceList([])
 
-            // Stop camera
+            // Stop camera and navigate to history
             stopVideo()
+            router.push('/teacher/history')
 
         } catch (err: unknown) {
             console.error(err)

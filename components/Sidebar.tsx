@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 // import { ScrollArea } from '@/components/ui/scroll-area' // Unused
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { Menu, LogOut } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useState } from 'react'
@@ -87,6 +87,7 @@ export function MobileSidebar({ links }: SidebarProps) {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 flex flex-col justify-between">
+                <SheetTitle className="sr-only">Navigation</SheetTitle>
                 <div className="space-y-4 py-4">
                     <div className="px-3 py-2">
                         <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">

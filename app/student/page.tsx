@@ -8,37 +8,49 @@ import { CheckCircle, XCircle, Clock } from 'lucide-react'
 
 export default function StudentDashboard() {
     const [schedule, setSchedule] = useState<ScheduleItem[]>([])
-    // const [loading, setLoading] = useState(true) // Unused
+    const [stats, setStats] = useState({ present: 0, absent: 0, late: 0 })
     const supabase = createClient()
 
     useEffect(() => {
-        const fetchSchedule = async () => {
-            // setLoading(true)
-
+        const fetchData = async () => {
             const { data: { user } } = await supabase.auth.getUser()
 
-            if (!user) {
-                // setLoading(false)
-                return
+            if (!user) return
+
+            // Fetch attendance stats
+            const { data: attendanceData } = await supabase
+                .from('attendance')
+                .select('status')
+                .eq('student_id', user.id)
+
+            if (attendanceData) {
+                const counts = { present: 0, absent: 0, late: 0 }
+                for (const record of attendanceData) {
+                    if (record.status === 'present') counts.present++
+                    else if (record.status === 'absent') counts.absent++
+                    else if (record.status === 'late') counts.late++
+                }
+                setStats(counts)
             }
 
-            // Get Student's Group ID
-            const { data: studentData } = await supabase
-                .from('users')
-                .select('group_id')
-                .eq('id', user.id)
-                .single()
+            // Fetch schedule IDs where this student is assigned
+            const { data: assignedSchedules } = await supabase
+                .from('schedule_students')
+                .select('schedule_id')
+                .eq('student_id', user.id)
 
-            if (studentData?.group_id) {
+            if (assignedSchedules && assignedSchedules.length > 0) {
+                const scheduleIds = assignedSchedules.map(s => s.schedule_id)
+
                 const { data } = await supabase
                     .from('schedule')
                     .select(`
-                        id, day_of_week, start_time, end_time,
+                        id, day_of_week, start_time, end_time, start_date, end_date,
                         groups (name),
                         subjects (name),
                         users!schedule_teacher_id_fkey (full_name)
                     `)
-                    .eq('group_id', studentData.group_id)
+                    .in('id', scheduleIds)
                     .order('day_of_week')
                     .order('start_time')
 
@@ -46,11 +58,36 @@ export default function StudentDashboard() {
                     // @ts-expect-error Supabase join types are not fully inferred
                     setSchedule(data)
                 }
+            } else {
+                // Fallback: show group-based schedule if not individually assigned
+                const { data: studentData } = await supabase
+                    .from('users')
+                    .select('group_id')
+                    .eq('id', user.id)
+                    .single()
+
+                if (studentData?.group_id) {
+                    const { data } = await supabase
+                        .from('schedule')
+                        .select(`
+                            id, day_of_week, start_time, end_time,
+                            groups (name),
+                            subjects (name),
+                            users!schedule_teacher_id_fkey (full_name)
+                        `)
+                        .eq('group_id', studentData.group_id)
+                        .order('day_of_week')
+                        .order('start_time')
+
+                    if (data) {
+                        // @ts-expect-error Supabase join types are not fully inferred
+                        setSchedule(data)
+                    }
+                }
             }
-            // setLoading(false)
         }
 
-        fetchSchedule()
+        fetchData()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
@@ -65,7 +102,7 @@ export default function StudentDashboard() {
                         <CheckCircle className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{stats.present}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -74,7 +111,7 @@ export default function StudentDashboard() {
                         <XCircle className="h-4 w-4 text-red-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{stats.absent}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -83,7 +120,7 @@ export default function StudentDashboard() {
                         <Clock className="h-4 w-4 text-yellow-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{stats.late}</div>
                     </CardContent>
                 </Card>
             </div>

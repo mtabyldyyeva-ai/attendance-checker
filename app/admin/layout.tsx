@@ -7,14 +7,22 @@ export default async function AdminLayout({
 }: {
     children: React.ReactNode
 }) {
-    const supabase = createClient()
-    const { data: { user } } = await (await supabase).auth.getUser()
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
         redirect('/login')
     }
 
-    // TODO: Add stricter role check here by querying public.users
+    const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'admin') {
+        redirect('/')
+    }
 
     return (
         <div className="flex min-h-screen flex-col md:flex-row">

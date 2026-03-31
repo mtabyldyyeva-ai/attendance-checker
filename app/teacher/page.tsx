@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation'
 
 export default function TeacherDashboard() {
     const [schedule, setSchedule] = useState<ScheduleItem[]>([])
-    // const [loading, setLoading] = useState(true) // Unused
     const supabase = createClient()
     const router = useRouter()
 
@@ -26,7 +25,7 @@ export default function TeacherDashboard() {
             const { data } = await supabase
                 .from('schedule')
                 .select(`
-                    id, day_of_week, start_time, end_time,
+                    id, day_of_week, start_time, end_time, start_date, end_date,
                     groups (name),
                     subjects (name),
                     users!schedule_teacher_id_fkey (full_name)

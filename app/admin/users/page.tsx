@@ -12,8 +12,8 @@ import { Plus } from "lucide-react"
 import Link from 'next/link'
 
 export default async function UsersPage() {
-    const supabase = createClient()
-    const { data: users } = await (await supabase)
+    const supabase = await createClient()
+    const { data: users } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false })
